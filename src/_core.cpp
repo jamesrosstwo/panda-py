@@ -8,6 +8,7 @@
 #include "controllers/applied_force.h"
 #include "controllers/applied_torque.h"
 #include "controllers/cartesian_impedance.h"
+#include "controllers/polymetis_impedance.h"
 #include "controllers/force.h"
 #include "controllers/integrated_velocity.h"
 #include "controllers/joint_position.h"
@@ -361,6 +362,53 @@ PYBIND11_MODULE(_core, m) {
            py::call_guard<py::gil_scoped_release>(),
            py::arg("nullspace_stiffness"))
       .def("set_filter", &CartesianImpedance::setFilter,
+           py::call_guard<py::gil_scoped_release>(), py::arg("filter_coeff"));
+
+  py::class_<PolymetisImpedance, TorqueController,
+             std::shared_ptr<PolymetisImpedance>>(m, "PolymetisImpedance")
+      .def(py::init<const Eigen::Matrix<double, 6, 6> &,
+                    const Eigen::Matrix<double, 6, 6> &,
+                    const Vector7d &, const Vector7d &,
+                    const double &>(),
+           py::arg("impedance") = PolymetisImpedance::kDefaultImpedance,
+           py::arg("damping") = PolymetisImpedance::kDefaultDamping,
+           py::arg("nullspace_stiffness") =
+               PolymetisImpedance::kDefaultNullspaceStiffness,
+           py::arg("nullspace_damping") =
+               PolymetisImpedance::kDefaultNullspaceDamping,
+           py::arg("filter_coeff") = PolymetisImpedance::kDefaultFilterCoeff,
+           R"delim(
+               Cartesian impedance controller with explicit per-axis damping
+               and per-joint nullspace gains, matching Polymetis conventions.
+
+               Fork of CartesianImpedance. Identical control law, orientation
+               error, nullspace projector, and EMA filter. Only the gain
+               parameterisation differs: damping is a 6x6 matrix (not derived
+               from stiffness via damping_ratio), and nullspace stiffness/damping
+               are 7D per-joint vectors (not scalars).
+
+               Args:
+                 impedance: Cartesian stiffness :math:`K_p \in \mathbb{R}^{6\times 6}`.
+                 damping: Cartesian damping :math:`K_d \in \mathbb{R}^{6\times 6}`.
+                 nullspace_stiffness: Per-joint nullspace stiffness :math:`K_q \in \mathbb{R}^7`.
+                 nullspace_damping: Per-joint nullspace damping :math:`K_{qd} \in \mathbb{R}^7`.
+                 filter_coeff: TP1 filter coefficient used to filter input signals.
+           )delim")
+      .def("set_control", &PolymetisImpedance::setControl,
+           py::call_guard<py::gil_scoped_release>(), py::arg("position"),
+           py::arg("orientation"), py::arg("q_nullspace") = kJointPositionStart)
+      .def("set_impedance", &PolymetisImpedance::setImpedance,
+           py::call_guard<py::gil_scoped_release>(), py::arg("impedance"))
+      .def("set_damping", &PolymetisImpedance::setDamping,
+           py::call_guard<py::gil_scoped_release>(), py::arg("damping"))
+      .def("set_nullspace_stiffness",
+           &PolymetisImpedance::setNullspaceStiffness,
+           py::call_guard<py::gil_scoped_release>(),
+           py::arg("nullspace_stiffness"))
+      .def("set_nullspace_damping", &PolymetisImpedance::setNullspaceDamping,
+           py::call_guard<py::gil_scoped_release>(),
+           py::arg("nullspace_damping"))
+      .def("set_filter", &PolymetisImpedance::setFilter,
            py::call_guard<py::gil_scoped_release>(), py::arg("filter_coeff"));
 
   py::class_<AppliedTorque, TorqueController, std::shared_ptr<AppliedTorque>>(
