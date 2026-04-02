@@ -173,15 +173,15 @@ void PolymetisImpedance::setFilter(const double filter_coeff) {
 }
 
 void PolymetisImpedance::_updateFilter() {
-  // EMA filter on all target values — identical to CartesianImpedance
-  K_p_ = ema_filter(K_p_target_, K_p_, filter_coeff_);
-  K_d_ = ema_filter(K_d_target_, K_d_, filter_coeff_);
-  Kq_ = ema_filter(Kq_target_, Kq_, filter_coeff_);
-  Kqd_ = ema_filter(Kqd_target_, Kqd_, filter_coeff_);
-  position_d_ = ema_filter(position_d_target_, position_d_, filter_coeff_);
+  // EMA filter: ema_filter(current, target, alpha) = alpha*target + (1-alpha)*current
+  K_p_ = ema_filter(K_p_, K_p_target_, filter_coeff_);
+  K_d_ = ema_filter(K_d_, K_d_target_, filter_coeff_);
+  Kq_ = ema_filter(Kq_, Kq_target_, filter_coeff_);
+  Kqd_ = ema_filter(Kqd_, Kqd_target_, filter_coeff_);
+  position_d_ = ema_filter(position_d_, position_d_target_, filter_coeff_);
   orientation_d_ = orientation_d_.slerp(filter_coeff_, orientation_d_target_);
   q_nullspace_d_ =
-      ema_filter(q_nullspace_d_target_, q_nullspace_d_, filter_coeff_);
+      ema_filter(q_nullspace_d_, q_nullspace_d_target_, filter_coeff_);
 }
 
 void PolymetisImpedance::start(const franka::RobotState &robot_state,
