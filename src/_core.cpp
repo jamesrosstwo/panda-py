@@ -9,6 +9,7 @@
 #include "controllers/applied_torque.h"
 #include "controllers/cartesian_impedance.h"
 #include "controllers/polymetis_impedance.h"
+#include "controllers/hybrid_joint_impedance.h"
 #include "controllers/force.h"
 #include "controllers/integrated_velocity.h"
 #include "controllers/joint_position.h"
@@ -409,6 +410,49 @@ PYBIND11_MODULE(_core, m) {
            py::call_guard<py::gil_scoped_release>(),
            py::arg("nullspace_damping"))
       .def("set_filter", &PolymetisImpedance::setFilter,
+           py::call_guard<py::gil_scoped_release>(), py::arg("filter_coeff"));
+
+  py::class_<HybridJointImpedance, TorqueController,
+             std::shared_ptr<HybridJointImpedance>>(m, "HybridJointImpedance")
+      .def(py::init<const Eigen::Matrix<double, 6, 6> &,
+                    const Eigen::Matrix<double, 6, 6> &,
+                    const Vector7d &, const Vector7d &,
+                    const double &>(),
+           py::arg("Kx") = HybridJointImpedance::kDefaultKx,
+           py::arg("Kxd") = HybridJointImpedance::kDefaultKxd,
+           py::arg("Kq") = HybridJointImpedance::kDefaultKq,
+           py::arg("Kqd") = HybridJointImpedance::kDefaultKqd,
+           py::arg("filter_coeff") = HybridJointImpedance::kDefaultFilterCoeff,
+           R"delim(
+               Joint-space impedance controller with Cartesian-augmented gains,
+               matching the actual Polymetis start_cartesian_impedance() architecture.
+
+               Effective gains:
+                 Kp_eff = J^T * Kx * J + diag(Kq)
+                 Kd_eff = J^T * Kxd * J + diag(Kqd)
+                 tau = Kp_eff * (q_desired - q) - Kd_eff * dq + coriolis
+
+               set_control() takes desired joint positions. Use panda_py.ik() on
+               the Python side to convert Cartesian targets to joint positions.
+
+               Args:
+                 Kx: Cartesian stiffness :math:`K_x \in \mathbb{R}^{6\times 6}`.
+                 Kxd: Cartesian damping :math:`K_{xd} \in \mathbb{R}^{6\times 6}`.
+                 Kq: Per-joint stiffness :math:`K_q \in \mathbb{R}^7`.
+                 Kqd: Per-joint damping :math:`K_{qd} \in \mathbb{R}^7`.
+                 filter_coeff: TP1 filter coefficient for input smoothing.
+           )delim")
+      .def("set_control", &HybridJointImpedance::setControl,
+           py::call_guard<py::gil_scoped_release>(), py::arg("q_desired"))
+      .def("set_Kx", &HybridJointImpedance::setKx,
+           py::call_guard<py::gil_scoped_release>(), py::arg("Kx"))
+      .def("set_Kxd", &HybridJointImpedance::setKxd,
+           py::call_guard<py::gil_scoped_release>(), py::arg("Kxd"))
+      .def("set_Kq", &HybridJointImpedance::setKq,
+           py::call_guard<py::gil_scoped_release>(), py::arg("Kq"))
+      .def("set_Kqd", &HybridJointImpedance::setKqd,
+           py::call_guard<py::gil_scoped_release>(), py::arg("Kqd"))
+      .def("set_filter", &HybridJointImpedance::setFilter,
            py::call_guard<py::gil_scoped_release>(), py::arg("filter_coeff"));
 
   py::class_<AppliedTorque, TorqueController, std::shared_ptr<AppliedTorque>>(
